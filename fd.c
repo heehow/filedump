@@ -1034,7 +1034,7 @@ vExit (n)
 	if(n < 0)
 		fprintf (stderr, "%s", caErrStr);
 	else
-		fprintf (stdout, "\n\nFile Dump Program Version. 2.4 (build 1519) made by HONGILDONG  (2020.03.03.)\n\n");
+		fprintf (stdout, "\n\nFile Dump Program Version. 2.5 (build 2519) made by HONGILDONG  (2021.11.11.)\n\n");
 	if (n == 1)
 		fprintf (stderr, "Usage : filedump	filename\n\n");
 
