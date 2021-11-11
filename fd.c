@@ -2,9 +2,15 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
+#ifdef _WIN32
+#include <windows.h>
+#include "curses.h"
+#include "dirent_windows.h"
+#else
 #include <unistd.h>
-#include <sys/stat.h>
 #include <ncurses.h>
+#endif
+#include <sys/stat.h>
 #include <stdarg.h>
 #include <ctype.h>
 #include <errno.h>
@@ -60,6 +66,8 @@ unsigned char	ascii_of_ebcdic[] = { /* 256 entries */
 #define	 MAXALLOC		2097152
 *--------------------------------------------------------------*/ 
 #define	 MAXALLOC		2097152
+
+//extern int ascebc (char *s, int slen, char *t, int tlen);
 
 void				vDisplay_Screen ();
 void				vDraw_Main_Menu ();
@@ -164,6 +172,7 @@ int iGet_String (unsigned char *buf, int len)
 	if (n == 0)
 		return -1;
 
+	/*--------------------------------------------------------------* 
 	if (iAsciiOrEbcdic)
 	{
 		int				 i, k;
@@ -176,6 +185,7 @@ int iGet_String (unsigned char *buf, int len)
 		else
 			memcpy (buf, tmpbuf, n);
 	}
+	*--------------------------------------------------------------*/ 
 
 	buf[n] = '\0';
 	return n;
@@ -839,7 +849,7 @@ iFile_Open (argno, filename)
 	int tmplen, readbytes, tmperrno, size, len;
 	char *p, digittmp[64], hexatmp[64];
 	unsigned char *str;
-	struct stat stbuf;
+	struct stat ss;
 
 	iEditMode = 0;
 	tmplen = MYPATHMAX;
@@ -847,16 +857,20 @@ iFile_Open (argno, filename)
 	if (argno != 3)
 		cpFileName = filename;
 
-	if (lstat (filename, &stbuf) < 0)
+#ifdef _WIN32
+	if (stat (filename, &ss) < 0)
+#else
+	if (lstat (filename, &ss) < 0)
+#endif
 	{
 		fprintf (stderr, "file(%s) : %s\n", filename, strerror (errno));
 		return -1;
 	}
 
-	if (S_ISREG (stbuf.st_mode))		  /* regular file */
+	if (S_ISREG (ss.st_mode))		  /* regular file */
 	{
 		cpTmpPtr = "regular file";
-		if ((fpSrc = fopen (filename, "r")) == NULL)
+		if ((fpSrc = fopen (filename, "rb")) == NULL)
 		{
 			fprintf (stderr, "\nfile(%s) open error : %s\n\n", filename, strerror (errno));
 			return -1;
@@ -866,7 +880,7 @@ iFile_Open (argno, filename)
 		iFileSize = ftell (fpSrc);
 		fseek (fpSrc, 0L, SEEK_SET);
 		*--------------------------------------------------------------*/ 
-		iFileSize = stbuf.st_size;
+		iFileSize = ss.st_size;
 		sprintf( digittmp, "%ld", iFileSize );
 		sprintf( hexatmp, "%lX", iFileSize );
 
@@ -897,7 +911,7 @@ iFile_Open (argno, filename)
 
 		if ((readbytes = fread (cpFileContent, 1, size, fpSrc)) != size)
 		{
-			fprintf (stderr, "\n(01) file(%s) read error : %s\n\n", filename, strerror (errno));
+			fprintf (stderr, "\n(01) file(%s) read error, size=%d, nread=%d : %s(%d)\n\n", filename, size, readbytes, strerror (errno), errno);
 			return -1;
 		}
 
@@ -926,7 +940,8 @@ iFile_Open (argno, filename)
 		if (iFileSize)
 			iEditMode = 1;
 	}
-	else if (S_ISLNK (stbuf.st_mode))
+#ifndef _WIN32
+	else if (S_ISLNK (ss.st_mode))
 	{
 		cpTmpPtr = "symbolic link";
 		if (argno != 3)
@@ -967,18 +982,21 @@ iFile_Open (argno, filename)
 			return -1;
 		}
 	}
+#endif
 	else
 	{
-		if (S_ISDIR (stbuf.st_mode))
+		if (S_ISDIR (ss.st_mode))
 			cpTmpPtr = "directory";
-		else if (S_ISCHR (stbuf.st_mode))
+		else if (S_ISCHR (ss.st_mode))
 			cpTmpPtr = "character special";
-		else if (S_ISBLK (stbuf.st_mode))
+		else if (S_ISBLK (ss.st_mode))
 			cpTmpPtr = "block special";
-		else if (S_ISFIFO (stbuf.st_mode))
+		else if (S_ISFIFO (ss.st_mode))
 			cpTmpPtr = "fifo";
-		else if (S_ISSOCK (stbuf.st_mode))
+#ifndef _WIN32
+		else if (S_ISSOCK (ss.st_mode))
 			cpTmpPtr = "socket";
+#endif
 		else
 			cpTmpPtr = "** unknown mode **";
 
@@ -1452,13 +1470,18 @@ main (argc, argv)
 	if (iFile_Open (argc, argv[1]) < 0)
 		exit (1);
 
+	printf("babo, before initscr\n");
 	/*-----------------------*
 	 * curses initialization *
 	 *-----------------------*/
 	initscr ();
+	printf("babo, before initscr 01\n");
 	raw ();
+	printf("babo, before initscr 02\n");
 	noecho ();
+	printf("babo, before initscr 03\n");
 	scrollok(stdscr, TRUE);
+	printf("babo, before initscr 04\n");
 	/*--------------------------------------------------------------* 
 	keypad(stdscr,TRUE); ESC KEY 를 연속해서 누르면 에러 발생 - core dump
 	*--------------------------------------------------------------*/
